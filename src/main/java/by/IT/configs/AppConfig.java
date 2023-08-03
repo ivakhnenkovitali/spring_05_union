@@ -4,13 +4,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 
 
-@ComponentScan(basePackages = {"by.IT.controllers", "by.IT.model.repositories"})
-
-
-
+@EnableWebMvc
+//@ComponentScan(basePackages = {"by.itclass.controllers", "by.itclass.model.repositories"})
+@ComponentScan("by.itclass")
 public class AppConfig {
     @Bean
-    public VerifyError verifyError(){
-        var vr =
+    public ViewResolver viewResolver() {
+        var vr = new InternalResourceViewResolver();
+        vr.setPrefix("/pages/");
+        vr.setSuffix(".jsp");
+        return vr;
     }
 }
