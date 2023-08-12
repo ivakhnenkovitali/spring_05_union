@@ -531,6 +531,8 @@ public String saveBook(
 
 
 
+
+
 И напишем новый метод в book контроллере
 
 @GetMapping("/deleteBook/{libraryId}/{bookId}")
