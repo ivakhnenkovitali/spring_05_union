@@ -1,0 +1,7 @@
+by\IT\configs\Init.class
+by\repositories\LibraryRepository.class
+by\entities\Book.class
+by\IT\controlers\LibraryController.class
+by\IT\configs\AppConfig.class
+by\entities\Library.class
+by\IT\configs\JpaConfig.class
