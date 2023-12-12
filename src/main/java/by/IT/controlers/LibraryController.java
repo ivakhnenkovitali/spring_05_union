@@ -1,33 +1,35 @@
 package by.IT.controlers;
 
 
-import by.repositories.LibraryRepositories;
-import net.sf.jsqlparser.Model;
+import by.itclass.model.repositories.LibraryRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 @Controller
 public class LibraryController {
-    private LibraryRepositories repository;
+    private LibraryRepository repository;
 
     @Autowired
-    public void setRepository(LibraryRepositories repository) {
+    public void setRepository(LibraryRepository repository) {
         this.repository = repository;
     }
 
     @GetMapping
-    public String getAll(Module module) {
+    public String getAll(Model model) {
         var libraries = repository.findAll();
         model.addAttribute("libraries", libraries);
         return "index";
-
     }
 
     @GetMapping("/view/{id}")
-    public String view(@PathVariable(name = "id") int id,
-                       Model model) {
+    public String view(
+            @PathVariable(name = "id") int id,
+            Model model) {
         var library = repository.findById(id).get();
-        model.addAttribute("library"library);
+        model.addAttribute("library", library);
         return "library";
     }
 }
