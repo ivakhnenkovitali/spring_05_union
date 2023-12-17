@@ -1,7 +1,6 @@
-
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<%@taglib prefix="c" uri="http:java.sun.com/jsp/jstl/core" %>
-<body>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<html>
 <head>
     <title>Library</title>
 </head>
@@ -13,15 +12,13 @@
     <tr>
         <th>Title</th>
         <th>Pages</th>
-
     </tr>
-    <c:forEach var="bool" items="${library.books}">
+    <c:forEach var="book" items="${library.books}">
         <tr>
-            <td></td>
-            <td></td>
+            <td>${book.title}</td>
+            <td>${book.pages}</td>
         </tr>
     </c:forEach>
-
 </table>
-</head>
+</body>
 </html>
