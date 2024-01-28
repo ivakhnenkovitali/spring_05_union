@@ -494,6 +494,8 @@ public ModelAndView addBook(@PathVariable(name = "id") int id) {
 </body>
 </html>
 
+
+
 ⦁	И добавим метод в контроллер, который будет сохранять книгу
 
 @PostMapping("/saveBook")
@@ -526,6 +528,9 @@ public String saveBook(
   </c:forEach>
 </table>
 
+
+
+
 И напишем новый метод в book контроллере
 
 @GetMapping("/deleteBook/{libraryId}/{bookId}")
@@ -534,5 +539,7 @@ public String deleteBook(
         @PathVariable(name = "bookId") int bookId) {
   bookRepository.deleteById(bookId);
   return "redirect:/view/" + libraryId;
+
+
 }
 Данный метод принимает на вход два параметра – один для удаления книги, второй для редиректа на страницу библилтеки
