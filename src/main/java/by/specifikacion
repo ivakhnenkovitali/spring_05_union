@@ -1,0 +1,538 @@
+Final Spring Project
+
+Создадим проект на основе Web MVC архетипа.
+
+<dependency>
+  <groupId>org.springframework</groupId>
+  <artifactId>spring-webmvc</artifactId>
+  <version>6.1.2</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>jakarta.servlet</groupId>
+  <artifactId>jakarta.servlet-api</artifactId>
+  <version>6.0.0</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>com.mysql</groupId>
+  <artifactId>mysql-connector-j</artifactId>
+  <version>8.0.33</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>org.springframework.data</groupId>
+  <artifactId>spring-data-jpa</artifactId>
+  <version>3.2.1</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>org.hibernate.orm</groupId>
+  <artifactId>hibernate-core</artifactId>
+  <version>6.4.1.Final</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>org.projectlombok</groupId>
+  <artifactId>lombok</artifactId>
+  <version>1.18.30</version>
+</dependency>
+_______________________________________________________________________________________________________________________________
+<dependency>
+  <groupId>org.glassfish.web</groupId>
+  <artifactId>jakarta.servlet.jsp.jstl</artifactId>
+  <version>3.0.1</version>
+</dependency>
+На самом деле проект будет похож на то, что мы уже делали (юзеры и адреса), но вмето Hibernate мы будем использлвать Spring JPA, ведь мы все-таки изучаем Spring…
+⦁	Сразу создадим каталог resources и файл  hibernate.properties
+
+hibernate.connection.url=jdbc:mysql://localhost:3306/po_xxxx
+hibernate.connection.username=root
+hibernate.connection.password=
+hibernate.connection.driver_class=com.mysql.cj.jdbc.Driver
+hibernate.show_sql=true
+#hibernate.hbm2ddl.auto=create
+
+⦁	Создадим необходимые пакеты:
+⦁	configs
+⦁	controllers
+⦁	model (entities, repositories),
+
+⦁	До начала реализации проекта необходимо создать необходимые конфигурации:
+
+Init 		– для инициализации нашего диспатчер-сервлета
+AppConfig 	– для конфигурации нашего MVC (бины для MVC)
+JpaConfig 	– для конфигурации наших репозиториев (бины для JPA)
+
+public class Init extends AbstractAnnotationConfigDispatcherServletInitializer{
+  @Override
+  protected Class<?>[] getRootConfigClasses() {
+    return new Class[]{JpaConfig.class};
+  }
+
+  @Override
+  protected Class<?>[] getServletConfigClasses() {
+    return new Class[]{AppConfig.class};
+  }
+
+  @Override
+  protected String[] getServletMappings() {
+    return new String[]{"/"};
+  }
+}
+_______________________________________________________________________________________________________________________________
+@EnableWebMvc
+@ComponentScan("by.itclass")
+public class AppConfig {
+  @Bean
+  public ViewResolver viewResolver() {
+    var viewResolver = new InternalResourceViewResolver();
+    viewResolver.setPrefix("/pages/");
+    viewResolver.setSuffix(".jsp");
+    return viewResolver;
+  }
+}
+_______________________________________________________________________________________________________________________________
+@EnableJpaRepositories("by.itclass.model.repositories")
+public class JpaConfig {
+  @Bean
+  public JpaVendorAdapter vendorAdapter() {
+    return new HibernateJpaVendorAdapter();
+  }
+
+  @Bean(name = "entityManagerFactory")
+  public LocalContainerEntityManagerFactoryBean factory(
+                                        JpaVendorAdapter vendorAdapter) {
+    var container = new LocalContainerEntityManagerFactoryBean();
+    container.setJpaVendorAdapter(vendorAdapter);
+    container.setPackagesToScan("by.itclass.model.entities");
+    return container;
+  }
+
+  @Bean
+  public JpaTransactionManager transactionManager(
+                             EntityManagerFactory entityManagerFactory) {
+    var transactionManager = new JpaTransactionManager();
+    transactionManager.setEntityManagerFactory(entityManagerFactory);
+    return transactionManager;
+  }
+}
+Настройка произведена... и в принципе наш проект уже готов... осталось создать сущности и репозитории... будем делать структуру библиотека –> книги
+⦁	Добавим энтити библиотеки
+
+@NoArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Entity
+@Table(name = "library")
+public class Library {
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @NonNull
+  private int id;
+  @NonNull
+  private String name;
+  @NonNull
+  private String address;
+}
+
+⦁	Добавим репозиторий библиотеки
+
+При написании репозитория выясняется, что интерфейс CrudRepository нам не то чобы совсем не подходит... но метод findAll() этого интерфейса возвращает Iterable, а нам нужен List. В этом нету ничего страшного... мы проявим программистскую смекалку и имплементим другой интерфейс, который расширяет  CrudRepository и возращает как раз таки List.
+
+@Repository
+@Transactional
+public interface LibraryRepository extends JpaRepository<Library, Integer>{}
+
+⦁	Создадим контроллер библиотеки...
+
+Поскольку у нас все будет работать на репозиториях, то прослойки DAO не будет.... да и Services не особо нужны тут. Подключим напрямую наш репозиторий в наш контроллер.
+
+@Controller
+public class LibraryController {
+  private LibraryRepository repository;
+
+  @Autowired
+  public void setRepository(LibraryRepository repository) {
+    this.repository = repository;
+  }
+
+  @GetMapping
+  public String getAll(Model model) {
+    var libraries = repository.findAll();
+    model.addAttribute("libraries", libraries);
+    return "index";
+  }
+}
+
+⦁	Напишем  страничку для показа списка библиотек (index.jsp)
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+
+<html>
+<head>
+  <title>Libraries</title>
+</head>
+<body>
+  <h1>Libraries</h1>
+  <table border="1">
+    <tr>
+      <th>Name</th>
+      <th>Address</th>
+    </tr>
+    <c:forEach var="library" items="${libraries}">
+      <tr>
+        <td>${library.name}</td>
+        <td>${library.address}</td>
+      </tr>
+    </c:forEach>
+  </table>
+</body>
+</html>
+
+
+⦁	Создадим в базе данных таблицу library и добавим парочку...
+
+CREATE TABLE library (
+    id int AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(50) NOT NULL,
+    address VARCHAR(50) NOT NULL
+);
+
+Проверим работу кода, который мы уже написали... для этого обратимся на корень приложения... маленький лайфхак – если сервлет не имеет вэлью в аннотации, то он по умолчанию маппится на корень.
+
+
+⦁	Добавим еще одну энтити - Book
+
+@NoArgsConstructor
+@RequiredArgsConstructor
+@Data
+@Entity
+@Table(name = "book")
+public class Book {
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private int id;
+  @NonNull
+  private String title;
+  @NonNull
+  private int pages;
+}
+
+⦁	Добавим связь между сущностями
+
+Некое множество книг хранятся в одной библиотеке и при этом одна библиотека хранит в себе множество книг. Раньше мы делали односторонюю связь... попробуем двустороннюю.
+
+
+
+Если просто добавить поля в классы и навесить аннотации, то создастся на самом деле не двусторонняя, в две односторонние связи. Чтобы сделать связь двусторонней нужно добавить атрибут @MappedBy на стороне обратной владельцу (т.е – в нашем случае владелец связи – книга, то аннотацию вешаем на библиотеку)
+
+
+В класс Book добавим поле типа Library и определим связь.
+
+@ManyToOne
+private Library library;
+
+В класс Library добавим поле типа List параметризованное Book и определим связь.
+
+@OneToMany(mappedBy = "library", fetch = FetchType.EAGER)
+private List<Book> books;
+
+⦁	Перейдем к контроллеру и создадим в нем метод...
+
+Данный метод позволит найти библиотеку в базе данных по некому id, а поскольку в библиотеке хранятся книги, то мы можем достать их
+
+@GetMapping("/view/{id}")
+public String view(@PathVariable(name = "id") int id, Model model) {
+  var library = repository.findById(id).get();
+  model.addAttribute("library", library);
+  return "library";
+}
+
+
+⦁	Добавим экшен в jsp-файл – добавимм ссылку, которая передает id библиотеки на этот сервлет и мы сможем получить подробную информацию о книгах в библиотеке
+
+<tr>
+  <th>Name</th>
+  <th>Address</th>
+  <th>Action</th>
+</tr>
+<c:forEach var="library" items="${libraries}">
+  <tr>
+    <td>${library.name}</td>
+    <td>${library.address}</td>
+    <td>
+      <a href="/view/${library.id}">view</a>
+    </td>
+  </tr>
+</c:forEach>
+
+⦁	Поскольку наш новый метод возвращает новый вью – инфу о книгах в библиотеке, то создадим соответствующую страницу (library.jsp), на которой и будет выодиться подробная информация.
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<html>
+<head>
+  <title>Library</title>
+</head>
+
+<body>
+  <h1>Library ${library.name}</h1>
+  <p>${library.address}</p>
+  <h2>Books</h2>
+  <table border="1">
+    <tr>
+      <th>Title</th>
+      <th>Pages</th>
+    </tr>
+    <c:forEach var="book" items="${library.books}">
+      <tr>
+        <td>${book.title}</td>
+        <td>${book.pages}</td>
+      </tr>
+    </c:forEach>
+  </table>
+</body>
+</html>
+
+⦁	Создадим в базе данных таблицу book и добавим парочку книг в библиотеку
+
+CREATE TABLE book(
+  id int AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(50) NOT NULL,
+  pages int NOT NULL,
+  library_id int NOT NULL,
+  FOREIGN KEY (library_id) REFERENCES library (id)
+                    ON DELETE CASCADE ON UPDATE RESTRICT
+);
+ Ну или если лень писать SQL то выбрать Структура – Связи (главное не забыть проставить свойство INDEX для столбца library_id)
+
+
+⦁	Добавим  удаление... это сделать просто... новый метод в сервлете
+
+@GetMapping("/delete/{id}")
+public String delete(@PathVariable(name = "id") int id) {
+  repository.deleteById(id);
+  return "redirect:/";
+}
+Вспоминаем, почему мы это делаем...  – поскольку мы должны попасть не на страницу, а на контроллер, то нужен именно такая строка адреса view.
+
+⦁	На jsp страницу добавляем новый экшен
+
+<a href="/delete/${library.id}">delete</a>
+
+Добавление библиотеки...
+Выглядит немного сложнее, так как нам нужно будет получить некоторые параметры, перед тем, как сохранить нашу библиотеку.. Но это не так... похожий подход мы уже применяли.
+
+⦁	На странице index.jsp добавим новый экшен.
+
+<p>
+    <a href="/add">Add New Library</a>
+</p>
+
+Эта ссылка будут направлять нас на контроллер, который в свою очередь будет создавать объект ModelAndView, помещать в модель объект библиотеки и направлять нас на страницу с формой...
+
+⦁	Добавляем метод в класс контроллера
+
+@GetMapping("/add")
+public ModelAndView add() {
+  return new ModelAndView("add-library", "library", new Library());
+}
+
+На этой странице при помощи формы будут просетаны поля объекта библиотеки соответствующими полями из формы...
+⦁	Напишем файл add-library.jsp
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="sf" uri="http://www.springframework.org/tags/form"%>
+<html>
+<head>
+  <title>Add library page</title>
+</head>
+<body>
+  <sf:form method="post" action="/save" modelAttribute="library">
+    Library name: <sf:input path="name"/><br><br>
+    Library address: <sf:input path="address"/><br><br>
+    <input type="submit" value="Save">
+  </sf:form>
+</body>
+</html>
+
+ и уже заполненый объект будет направлен на другой сервлет для сохранения.
+
+⦁	Добавляем метод в класс контроллера
+
+
+@PostMapping("/save")
+public String save(@ModelAttribute(name = "library") Library library) {
+  repository.save(library);
+  return "redirect:/";
+}
+Ну и последняя из CRUD операций – update… Он мало чем будет отличаться от добавления – в этом методе мы будем передавать в модель не пустой объект, а уже существующий...
+
+⦁	Добавляем метод в класс контроллера
+
+
+@GetMapping("/update/{id}")
+public ModelAndView update(@PathVariable("id") int id) {
+  var library = repository.findById(id).get();
+  return new ModelAndView("upd-library", "library", library);
+}
+
+Видим, что нужно создать страничку  upd-library.jsp – так и..
+
+⦁	 Cоздадим...
+
+Причем эта страница будет нас направлять на уже написанный метод save… и не будет никаих конфликтов...
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="sf" uri="http://www.springframework.org/tags/form"%>
+<html>
+<head>
+  <title>Update library page</title>
+</head>
+<body>
+  <sf:form method="post" action="/save" modelAttribute="library">
+    <sf:input type="hidden" path="id"/><br>
+    Library name: <sf:input path="name"/><br>
+    Library address: <sf:input path="address"/><br>
+    <input type="submit" value="Update">
+  </sf:form>
+</body>
+</html>
+
+⦁	Добавим в табличку новый экшен
+
+<a href="/update/${library.id}">update</a>
+
+⦁	Подключение сторонних библиотек.
+В директории webapp создадим директорию css и поместим туда файл styles.css…
+Для того, чтобы подключить стили на странице пишем
+
+<link rel="stylesheet" href="css/styles.css">
+
+Добавляем стили и думаем, что все ок.... но тут незаметно подкрался песец... Не выходит каменный цветок у Данилы-мастера...
+А все от того, что резолвер для jsp мы прописали... надо также еще доступ к ресурсам в конфиге открыть, чтобы Spring видел их. Для этого
+
+ public class WebMvcConfig implements WebMvcConfigurer {
+
+   @Override
+   public void addResourceHandlers(ResourceHandlerRegistry registry) {
+     registry.addResourceHandler("/css/**").addResourceLocations("/css/");
+   }
+ }
+
+ну и добавить этот класс в наш метод getRootConfigClasses() нашего конфигурационного файла.
+
+  @Override
+  protected Class<?>[] getRootConfigClasses() {
+    return new Class[]{JpaConfig.class, WebMvcConfig.class};
+  }
+
+
+⦁	Для того, чтобы добавить книгу в библиотеку, создадим... репозиторий
+
+@Repository
+@Transactional
+public interface BookRepository extends JpaRepository<Book, Integer> {}
+
+⦁	И контроллер новый...
+Причем если у нас прокатывает сохранение библиотеки без книг, то сохранить книгу без библиотеки как-то не получается. Поэтому кроме репозитория книг в наш контроллер придется подгрузить еще и репозиторий библиотеки.... позже станет понятно для чего
+
+@Controller
+public class BookController {
+  private BookRepository bookRepository;
+  private LibraryRepository libraryRepository;
+
+  @Autowired
+  public void setBookRepository(BookRepository bookRepository) {
+    this.bookRepository = bookRepository; }
+
+  @Autowired
+  public void setLibraryRepository(LibraryRepository libraryRepository){
+    this.libraryRepository = libraryRepository; }
+}
+Но и это еще не все... чтобы не создавать костыли, добавляя поле с именем library_id в класс Book...
+⦁	Создадим вспомогательный объект,
+ Который будет отражать необходимые нам значения полей книги и содержать айдишник библиотеки, в которую мы эту книгу помещаем.
+@RequiredArgsConstructor
+@NoArgsConstructor
+@Data
+public class BookInLibrary {
+  private String title;
+  private int pages;
+  private final int library_id;
+}
+
+⦁	На страницу просмотра библиотеки (library.jsp) добавляем кнопку
+
+<p>
+  <a href="/addBook/${library.id}">Add New Book</a>
+</p>
+
+⦁	Добавляем метод в класс контроллера
+Код будет очень похож на метод , который добавляет библиотеку, но будем использовать  наш вспомогательный объект
+@GetMapping("/addBook/{id}")
+public ModelAndView addBook(@PathVariable(name = "id") int id) {
+  return new ModelAndView("add-book", "book", new BookInLibrary(id));
+}
+⦁	Создадим станичку (add-book.jsp) на которой будут задаваться значения полей
+
+<%@ page contentType="text/html;charset=UTF-8" language="java" %>
+<%@ taglib prefix="sf" uri="http://www.springframework.org/tags/form" %>
+<html>
+<head>
+  <title>Add book page</title>
+</head>
+<body>
+  <sf:form method="post" action="/saveBook" modelAttribute="book">
+    <sf:input type="hidden" path="library_id"/><br>
+    Book title: <sf:input path="title"/><br>
+    Pages: <sf:input path="pages"/><br>
+    <input type="submit" value="Save">
+  </sf:form>
+</body>
+</html>
+
+⦁	И добавим метод в контроллер, который будет сохранять книгу
+
+@PostMapping("/saveBook")
+public String saveBook(
+              @ModelAttribute(name = "book") BookInLibrary bookInLibrary) {
+  var book = new Book(bookInLibrary.getTitle(),bookInLibrary.getPages());
+  book.setLibrary(libraryRepository.findById(bookInLibrary.getLibrary_id()).get());
+  bookRepository.save(book);
+  return "redirect:/view/" + bookInLibrary.getLibrary_id();
+}
+Опять же... мы дожны попасть туда, откуда стартанули... поэтому наш метод возвращает такую странную строку.
+
+⦁	Добавим возможность удалить книгу
+Добавим на страницу library.jsp экшен...
+
+<table border="1">
+  <tr>
+    <th>Title</th>
+    <th>Pages</th>
+    <th>Action</th>
+  </tr>
+  <c:forEach var="book" items="${library.books}">
+    <tr>
+      <td>${book.title}</td>
+      <td>${book.pages}</td>
+      <td>
+        <a href="/deleteBook/${library.id}/${book.id}">Delete Book</a>
+      </td>
+    </tr>
+  </c:forEach>
+</table>
+
+И напишем новый метод в book контроллере
+
+@GetMapping("/deleteBook/{libraryId}/{bookId}")
+public String deleteBook(
+        @PathVariable(name = "libraryId") int libraryId,
+        @PathVariable(name = "bookId") int bookId) {
+  bookRepository.deleteById(bookId);
+  return "redirect:/view/" + libraryId;
+}
+Данный метод принимает на вход два параметра – один для удаления книги, второй для редиректа на страницу библилтеки
